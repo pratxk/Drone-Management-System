@@ -1,0 +1,6 @@
+[submodule "Falcon"]
+	path = Falcon
+	url = https://github.com/pratxk/Falcon
+[submodule "Redwing"]
+	path = Redwing
+	url = https://github.com/pratxk/Redwing
