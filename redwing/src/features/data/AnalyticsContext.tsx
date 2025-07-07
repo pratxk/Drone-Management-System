@@ -185,14 +185,17 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
           variables: { organizationId },
           fetchPolicy: 'network-only',
         });
-        if (!deepEqual(data.organizationStats, analytics)) {
-          setAnalytics(data.organizationStats as Analytics);
-          await redisCache.set(`analytics:${organizationId}`, data.organizationStats);
-        }
+        setAnalytics((currentAnalytics) => {
+          if (!deepEqual(data.organizationStats, currentAnalytics)) {
+            redisCache.set(`analytics:${organizationId}`, data.organizationStats);
+            return data.organizationStats as Analytics;
+          }
+          return currentAnalytics;
+        });
       } catch (err) {}
     }, 5 * 60 * 1000);
     return () => clearInterval(interval);
-  }, [client, organizationId, authLoading, analytics]);
+  }, [client, organizationId, authLoading]);
 
   const updateAnalytics = useCallback(async (analyticsData: Analytics) => {
     if (!organizationId) return;

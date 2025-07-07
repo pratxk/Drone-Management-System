@@ -20,6 +20,7 @@ import {
 import { toast } from 'sonner';
 import { SitesProvider, useSites } from '../../../features/data/SitesContext';
 import type { Site } from '@/types/mission';
+import AddSiteModal from '../../../components/modals/AddSiteModal';
 
 const getSuccessRate = (completed: number, total: number) => {
   return total > 0 ? ((completed / total) * 100).toFixed(1) : '0';
@@ -38,6 +39,7 @@ function SitesPageContent() {
     refetch: () => Promise<void>;
   };
   const [selectedSite, setSelectedSite] = useState<string | null>(null);
+  const [showAddSiteModal, setShowAddSiteModal] = useState(false);
 
   const handleMarkerClick = (id: string, type: 'drone' | 'mission' | 'site') => {
     if (type === 'site') {
@@ -104,7 +106,7 @@ function SitesPageContent() {
         title="Sites"
         description="Manage and monitor operational sites"
       >
-        <Button>
+        <Button onClick={() => setShowAddSiteModal(true)}>
           <Plus className="h-4 w-4 mr-2" />
           Add Site
         </Button>
@@ -355,6 +357,11 @@ function SitesPageContent() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <AddSiteModal
+        isOpen={showAddSiteModal}
+        onClose={() => setShowAddSiteModal(false)}
+      />
     </div>
   );
 }

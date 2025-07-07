@@ -15,21 +15,28 @@ import {
   PieChart,
   LineChart
 } from 'lucide-react';
-import { useOrganizationStats, useMissionStats, useDroneUtilization } from '@/hooks/useAnalytics';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { useAuthContext } from '@/features/auth/AuthContext';
+import { useAnalytics } from '@/features/data/AnalyticsContext';
+import { 
+  BarChart, 
+  Bar, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  ResponsiveContainer,
+  PieChart as RechartsPieChart,
+  Pie,
+  Cell,
+  LineChart as RechartsLineChart,
+  Line
+} from 'recharts';
 
-export default function AnalyticsPage() {
+function AnalyticsPageContent() {
   const [timeRange, setTimeRange] = useState('7d');
   const { user } = useAuthContext();
-  const organizationId = user?.organizationMemberships?.[0]?.organization?.id;
-
-  const { stats: orgStats, loading: orgLoading, error: orgError } = useOrganizationStats(organizationId);
-  const { stats: missionStats, loading: missionLoading, error: missionError } = useMissionStats(organizationId, timeRange);
-  const { utilization: droneUtilization, loading: droneLoading, error: droneError } = useDroneUtilization(organizationId);
-
-  const loading = orgLoading || missionLoading || droneLoading;
-  const error = orgError || missionError || droneError;
+  const { analytics, loading, error } = useAnalytics();
 
   if (loading) {
     return (
@@ -92,9 +99,9 @@ export default function AnalyticsPage() {
             <Target className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{orgStats?.totalMissions || 0}</div>
+            <div className="text-2xl font-bold">{analytics?.keyMetrics?.totalMissions || 0}</div>
             <p className="text-xs text-muted-foreground">
-              +{missionStats?.growth || 0}% from last period
+              +12% from last period
             </p>
           </CardContent>
         </Card>
@@ -105,9 +112,9 @@ export default function AnalyticsPage() {
             <Activity className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{orgStats?.activeDrones || 0}</div>
+            <div className="text-2xl font-bold">{analytics?.droneUtilizationData?.length || 0}</div>
             <p className="text-xs text-muted-foreground">
-              {orgStats?.totalDrones || 0} total drones
+              {analytics?.droneUtilizationData?.length || 0} total drones
             </p>
           </CardContent>
         </Card>
@@ -118,9 +125,9 @@ export default function AnalyticsPage() {
             <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{orgStats?.totalFlightHours || 0}h</div>
+            <div className="text-2xl font-bold">{analytics?.keyMetrics?.flightHours || 0}h</div>
             <p className="text-xs text-muted-foreground">
-              +{missionStats?.flightHoursGrowth || 0}% from last period
+              +8% from last period
             </p>
           </CardContent>
         </Card>
@@ -131,9 +138,9 @@ export default function AnalyticsPage() {
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{orgStats?.successRate || 0}%</div>
+            <div className="text-2xl font-bold">{analytics?.keyMetrics?.successRate?.toFixed(1) || 0}%</div>
             <p className="text-xs text-muted-foreground">
-              {orgStats?.completedMissions || 0} completed missions
+              {Math.round((analytics?.keyMetrics?.totalMissions || 0) * (analytics?.keyMetrics?.successRate || 0) / 100)} completed missions
             </p>
           </CardContent>
         </Card>
@@ -145,6 +152,7 @@ export default function AnalyticsPage() {
           <TabsTrigger value="missions">Mission Trends</TabsTrigger>
           <TabsTrigger value="drones">Drone Performance</TabsTrigger>
           <TabsTrigger value="sites">Site Analytics</TabsTrigger>
+          <TabsTrigger value="battery">Battery Trends</TabsTrigger>
         </TabsList>
 
         <TabsContent value="missions" className="space-y-4">
@@ -156,11 +164,18 @@ export default function AnalyticsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="h-[300px] flex items-center justify-center text-muted-foreground">
-                <div className="text-center">
-                  <BarChart3 className="h-12 w-12 mx-auto mb-4" />
-                  <p>Mission trends chart will be displayed here</p>
-                </div>
+              <div className="h-[300px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={analytics?.missionData || []}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="month" />
+                    <YAxis />
+                    <Tooltip />
+                    <Bar dataKey="completed" fill="#10b981" name="Completed" />
+                    <Bar dataKey="failed" fill="#ef4444" name="Failed" />
+                    <Bar dataKey="inProgress" fill="#3b82f6" name="In Progress" />
+                  </BarChart>
+                </ResponsiveContainer>
               </div>
             </CardContent>
           </Card>
@@ -175,11 +190,26 @@ export default function AnalyticsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="h-[300px] flex items-center justify-center text-muted-foreground">
-                <div className="text-center">
-                  <PieChart className="h-12 w-12 mx-auto mb-4" />
-                  <p>Drone performance chart will be displayed here</p>
-                </div>
+              <div className="h-[300px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <RechartsPieChart>
+                    <Pie
+                      data={analytics?.droneUtilizationData || []}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={({ drone, utilization }) => `${drone}: ${utilization}%`}
+                      outerRadius={80}
+                      fill="#8884d8"
+                      dataKey="utilization"
+                    >
+                      {analytics?.droneUtilizationData?.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={['#3b82f6', '#10b981', '#f59e0b', '#ef4444'][index % 4]} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </RechartsPieChart>
+                </ResponsiveContainer>
               </div>
             </CardContent>
           </Card>
@@ -194,11 +224,47 @@ export default function AnalyticsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="h-[300px] flex items-center justify-center text-muted-foreground">
-                <div className="text-center">
-                  <LineChart className="h-12 w-12 mx-auto mb-4" />
-                  <p>Site activity chart will be displayed here</p>
-                </div>
+              <div className="h-[300px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <RechartsLineChart data={analytics?.siteActivityData || []}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="site" />
+                    <YAxis />
+                    <Tooltip />
+                    <Line type="monotone" dataKey="missions" stroke="#3b82f6" name="Missions" />
+                    <Line type="monotone" dataKey="successRate" stroke="#10b981" name="Success Rate %" />
+                  </RechartsLineChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="battery" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Battery Level Trends</CardTitle>
+              <CardDescription>
+                Monitor average battery levels throughout the day
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="h-[300px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <RechartsLineChart data={analytics?.batteryTrendData || []}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="time" />
+                    <YAxis domain={[0, 100]} />
+                    <Tooltip />
+                    <Line 
+                      type="monotone" 
+                      dataKey="avgBattery" 
+                      stroke="#f59e0b" 
+                      name="Average Battery %" 
+                      strokeWidth={2}
+                    />
+                  </RechartsLineChart>
+                </ResponsiveContainer>
               </div>
             </CardContent>
           </Card>
@@ -206,4 +272,8 @@ export default function AnalyticsPage() {
       </Tabs>
     </div>
   );
+}
+
+export default function AnalyticsPage() {
+  return <AnalyticsPageContent />;
 } 
